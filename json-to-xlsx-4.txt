@@ -1,0 +1,144 @@
+//Hard-coded to make the function checkSubstring run in O(n) instead of O(n^2)
+const expectedCharacter = 8;
+let regex = /\r|\t|\n|(pd numbers)|([0-9]{2}:[0-9]{2}:[0-9]{2})/g;
+
+var rawTextJson = [];
+var excelJson = [];
+
+var errorLogP = document.getElementById("errorLog");
+
+var file1 = document.getElementById("fileName");
+file1.addEventListener("change", function () {
+    var reader = new FileReader();
+    reader.onload = function (progressEvent) {
+        let a = this.result;
+        let b = a.replaceAll(regex, "");
+        b = b.replace(/\s+/g,' ').trim();
+
+        let fileNames = filename.split("_");
+        let nextRow = fileNames[1];
+        
+        rawTextJson = []
+        try {
+            let c = JSON.parse(b);
+            for (const key in c){
+                if (!c.hasOwnProperty(key)) continue;
+                let value = c[key];
+                let name = CleaningName(key);
+                let obj = {Name: name};
+                obj[nextRow] = value;
+                rawTextJson.push(obj);
+            }
+            errorLogP.innerHTML = "SUCCESS"
+        }
+        catch (e) {
+            errorLogP.innerHTML = "Error: " + e.message;
+        }
+    };
+    let indexReading = this.files.length > 1 ? 1 : 0;
+    filename = this.files[indexReading].name.slice(0, -8);
+    reader.readAsText(this.files[indexReading]);
+});
+
+var file2 = document.getElementById("originalFileName");
+file2.addEventListener("change", function(event){
+    var reader = new FileReader();
+
+    reader.onload = function(event){
+        let data = this.result;
+        let workbook = XLSX.read(data, {
+            type: 'binary'
+        });
+
+        let resultSheet = workbook.Sheets['Result'];
+        excelJson = XLSX.utils.sheet_to_json(resultSheet);
+    }
+    var selectedFile = this.files[0]; 
+    reader.readAsBinaryString(selectedFile);
+});
+
+let ExportData = () => {
+    filename2 = filename + '_Reports.xlsx';
+    ExportToExcel(rawTextJson, filename2);
+}
+
+let MergeData = () => {
+    let preProcessing = []
+    let fileNames = filename.split("_");
+    let nextRow = fileNames[1];
+
+    excelJson.forEach(row => {
+        let name = CleaningName(row.Name);
+        row.Name = name;
+        preProcessing[name] = row
+    });
+
+    rawTextJson.forEach(row => {
+        let name = CleaningName(row.Name);
+        let excelRowObj = preProcessing[name];
+        try{
+            excelRowObj[nextRow] = row[nextRow];
+            preProcessing[row.Name] = excelRowObj;
+        }
+        catch(err){
+            console.log(err.message);
+            console.log(JSON.stringify(row));
+            console.log(JSON.stringify(excelRowObj));
+        }
+    });
+
+    let finalProcessing = [];
+    for (const key in preProcessing){
+        let obj = preProcessing[key];
+        finalProcessing.push(obj);
+    }
+    
+    filename2 = filename + '_Reports_Merged.xlsx';
+    ExportToExcel(finalProcessing, filename2);
+}
+
+const ExportToExcel = function(data, fileName){
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Result');
+    XLSX.writeFile(workbook, fileName);
+}
+
+const CleaningName = function(name){
+    let result = name.trim();
+    let spaceStrings = result.split(" ");
+    result = spaceStrings.join("");
+    return result
+}
+
+/*
+var selectedFile = this.files[0]; 
+const workbook = XLSX.readFile(selectedFile);
+const worksheet = workbook.Sheets['Result'];
+excelJson = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+
+var ws = XLSX.utils.json_to_sheet(transp(arr), {"skipHeader": 1});
+var wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, "Result");
+XLSX.writeFile(wb, filename2);
+const transp = a => Object.keys(a[0]).map(c => {
+    let ret = a.map(r => r[c]); ret.unshift(c);
+    return ret;
+});
+
+let convert = () => {
+    let jsonObject = JSON.parse(a);
+    console.log(jsonObject);
+}
+*/
+let checkSubstringAgainstRegex = (string, pattern) => {
+    let regex = new RegExp(pattern);
+    for (let i = 0; i < string.length; i++) {
+        let _substring = string.slice(i, i + expectedCharacter);
+        if (regex.test(_substring)) {
+            return i;
+        }
+    }
+    // return -1 if substring not found
+    return -1;
+}
